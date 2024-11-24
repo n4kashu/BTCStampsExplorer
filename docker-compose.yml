@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  btc-stamps-explorer:
+    image: mortylen/btcstampsexplorer:latest
+    ports:
+      - "8000:8000"
+    environment:
+      # Database Configuration
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME:-btc_stamps}
+      - DB_MAX_RETRIES=${DB_MAX_RETRIES:-5}
+
+      # API and Service Configuration
+      - API_BASE_URL=${API_BASE_URL}
+      - QUICKNODE_ENDPOINT=${QUICKNODE_ENDPOINT}
+      - QUICKNODE_API_KEY=${QUICKNODE_API_KEY}
+
+      # Minting Service Configuration
+      - MINTING_SERVICE_FEE_ADDRESS=${MINTING_SERVICE_FEE_ADDRESS}
+      - MINTING_SERVICE_FEE_FIXED_SATS=${MINTING_SERVICE_FEE_FIXED_SATS}
+      - MINTING_SERVICE_FEE_ENABLED=${MINTING_SERVICE_FEE_ENABLED:-0}
+
+      # Additional Configurations
+      - IMAGES_SRC_PATH=${IMAGES_SRC_PATH:-https://stampchain.io/stamps}
+      - CACHE=${CACHE:-false}
+      - ELASTICACHE_ENDPOINT=${ELASTICACHE_ENDPOINT}
+
+    restart: unless-stopped
+    networks:
+      - btc-stamps-network
+
+networks:
+  btc-stamps-network:
+    driver: bridge
