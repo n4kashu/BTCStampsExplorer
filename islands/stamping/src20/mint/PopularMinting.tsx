@@ -1,18 +1,26 @@
+import { ModulesStyles } from "$islands/modules/Styles.ts";
 import { SRC20TokenMintingCard } from "$islands/src20/cards/SRC20TokenMintingCard.tsx";
 import { SRC20TokenOutmintedCard } from "$islands/src20/cards/SRC20TokenOutmintedCard.tsx";
+import type { SRC20MintingProps } from "$lib/types/stamping.ts";
+import type { JSX } from "preact";
 
-const PopularMinting = ({ transactions }) => {
+export default function PopularMinting(
+  { transactions }: SRC20MintingProps,
+): JSX.Element {
   if (!transactions || transactions.length === 0) {
-    return null;
+    return <div></div>;
   }
 
   return (
-    <div className="flex flex-col gap-4 items-start tablet:items-end">
-      <h1 className="purple-gradient4 text-3xl tablet:text-6xl font-black">
+    <div className="flex flex-col items-start tablet:items-end">
+      <h1 class={`${ModulesStyles.titlePurpleDL} tablet:hidden`}>
         TRENDING
       </h1>
-      <p className="text-2xl tablet:text-5xl text-[#AA00FF]">POPULAR TOKENS</p>
-      <div class="w-full flex flex-col gap-4">
+      <h1 class={`hidden tablet:block ${ModulesStyles.titlePurpleLD}`}>
+        TRENDING
+      </h1>
+      <h2 className={ModulesStyles.subTitlePurple}>POPULAR TOKENS</h2>
+      <div class="w-full flex flex-col gap-3 mobileMd:gap-6">
         {transactions.map((src20) => (
           src20.progress !== "100"
             ? (
@@ -35,6 +43,4 @@ const PopularMinting = ({ transactions }) => {
       </div>
     </div>
   );
-};
-
-export default PopularMinting;
+}

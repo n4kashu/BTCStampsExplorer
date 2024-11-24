@@ -1,7 +1,6 @@
 import { StampCard } from "$islands/stamp/StampCard.tsx";
 import { StampRow } from "globals";
 
-// FIXME: transition this to stampsection
 export function StampContent({ stamps, isRecentSales = false }: {
   stamps: (StampRow & {
     sale_data?: { btc_amount: number; block_index: number; tx_hash: string };
@@ -9,17 +8,18 @@ export function StampContent({ stamps, isRecentSales = false }: {
   isRecentSales?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-2 mobileLg:grid-cols-4 gap-2 mobileLg:gap-4 tablet:gap-6 py-6 
-      transition-opacity duration-700 ease-in-out">
-      {stamps.map((stamp) => (
-        <StampCard
-          key={stamp.tx_hash}
-          stamp={stamp}
-          isRecentSale={isRecentSales}
-          showDetails={true}
-          variant="grey"
-        />
-      ))}
+    <div class="w-full pt-3 pb-12 mobileMd:pt-6 mobileMd:pb-[72px]">
+      <div class="grid grid-cols-2 mobileMd:grid-cols-3 mobileLg:grid-cols-4 tablet:grid-cols-5 desktop:grid-cols-6 gap-3 mobileMd:gap-6 w-full auto-rows-fr">
+        {stamps.map((stamp) => (
+          <StampCard
+            key={stamp.tx_hash}
+            stamp={stamp}
+            isRecentSale={isRecentSales}
+            showDetails={true}
+            variant="grey"
+          />
+        ))}
+      </div>
     </div>
   );
 }

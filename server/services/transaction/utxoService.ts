@@ -3,7 +3,7 @@ import { getUTXOForAddress } from "$lib/utils/utxoUtils.ts";
 import { XcpManager } from "$server/services/xcpService.ts";
 import * as bitcoin from "bitcoinjs-lib";
 import { calculateMiningFee } from "$lib/utils/minting/feeCalculations.ts";
-import { PSBTService } from "./psbtService.ts";
+import { PSBTService } from "$server/services/transaction/psbtService.ts";
 import { 
   isP2PKH, 
   isP2SH, 
@@ -17,11 +17,6 @@ import { TX_CONSTANTS } from "$lib/utils/minting/constants.ts";
 
 export class UTXOService {
   private static readonly CHANGE_DUST = 1000;
-
-  static estimateInputSize(script: string): number {
-    const scriptType = getScriptTypeInfo(script);
-    return scriptType.size;
-  }
 
   static estimateVoutSize(output: Output): number {
     let scriptSize = 0;
@@ -111,24 +106,28 @@ export class UTXOService {
     sigops_rate: number,
     rbfBuffer: number,
   ) {
-    const totalOutputValue = vouts.reduce((sum, vout) => sum + vout.value, 0);
-    let totalInputValue = 0;
+    // Convert values to BigInt at the start
+    const totalOutputValue = vouts.reduce((sum, vout) => 
+      BigInt(sum) + BigInt(vout.value), BigInt(0));
+    let totalInputValue = BigInt(0);
     const selectedInputs: Array<UTXO & { ancestor?: AncestorInfo }> = [];
 
     // Sort UTXOs by effective value
     const utxosWithValues = utxos.map(utxo => ({
       ...utxo,
-      effectiveValue: utxo.value - (utxo.ancestor?.fees || 0)
+      effectiveValue: BigInt(utxo.value) - BigInt(utxo.ancestor?.fees || 0)
     }));
 
-    utxosWithValues.sort((a, b) => b.effectiveValue - a.effectiveValue);
+    // Sort using BigInt comparison
+    utxosWithValues.sort((a, b) => 
+      Number(b.effectiveValue - a.effectiveValue)); // Convert back to number for sort comparison
 
     for (const utxo of utxosWithValues) {
       selectedInputs.push(utxo);
-      totalInputValue += utxo.value;
+      totalInputValue += BigInt(utxo.value);
 
       // Calculate current fee with proper script type detection
-      const currentFee = calculateMiningFee(
+      const currentFee = BigInt(calculateMiningFee(
         selectedInputs.map(input => {
           const scriptType = getScriptTypeInfo(input.script);
           return {
@@ -146,7 +145,7 @@ export class UTXOService {
             type: scriptType.type,
             size: scriptType.size,
             isWitness: scriptType.isWitness,
-            value: output.value
+            value: Number(output.value) // Keep as number for fee calculation
           };
         }),
         feeRate,
@@ -154,15 +153,17 @@ export class UTXOService {
           includeChangeOutput: true,
           changeOutputType: "P2WPKH"
         }
-      );
+      ));
 
       if (totalInputValue >= totalOutputValue + currentFee) {
         const change = totalInputValue - totalOutputValue - currentFee;
-        if (change >= this.CHANGE_DUST || change === 0) {
+        const changeDust = BigInt(this.CHANGE_DUST);
+        
+        if (change >= changeDust || change === BigInt(0)) {
           return {
             inputs: selectedInputs,
-            change: change >= this.CHANGE_DUST ? change : 0,
-            fee: currentFee,
+            change: change >= changeDust ? Number(change) : 0, // Convert back to number
+            fee: Number(currentFee), // Convert back to number
           };
         }
       }

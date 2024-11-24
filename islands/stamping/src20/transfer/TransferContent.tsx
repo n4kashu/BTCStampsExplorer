@@ -1,14 +1,18 @@
 import { useSRC20Form } from "$client/hooks/useSRC20Form.ts";
 import { useState } from "preact/hooks";
 
+import { walletContext } from "$client/wallet/wallet.ts";
+
 import { FeeEstimation } from "$islands/stamping/FeeEstimation.tsx";
 import { StatusMessages } from "$islands/stamping/StatusMessages.tsx";
 import { InputField } from "$islands/stamping/InputField.tsx";
 
-const titlePurpleLDCenterClassName =
-  "text-3xl mobileMd:text-4xl mobileLg:text-5xl desktop:text-6xl font-black purple-gradient3 w-full text-center";
+import { logger } from "$lib/utils/logger.ts";
+
 const bodyToolsClassName =
   "flex flex-col w-full items-center gap-3 mobileMd:gap-6";
+const titlePurpleLDCenterClassName =
+  "inline-block text-3xl mobileMd:text-4xl mobileLg:text-5xl desktop:text-6xl font-black purple-gradient3 w-full text-center";
 
 const inputFieldContainerClassName =
   "flex flex-col gap-3 mobileMd:gap-6 p-3 mobileMd:p-6 dark-gradient w-full";
@@ -36,6 +40,8 @@ export function TransferContent(
 
   const [tosAgreed, setTosAgreed] = useState(false);
 
+  const { wallet, isConnected } = walletContext;
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -45,6 +51,14 @@ export function TransferContent(
   }
 
   const handleTransferSubmit = async () => {
+    if (!isConnected) {
+      logger.debug("stamps", {
+        message: "Showing wallet connect modal - user not connected",
+      });
+      walletContext.showConnectModal();
+      return;
+    }
+
     try {
       await handleSubmit();
     } catch (error) {
@@ -95,7 +109,7 @@ export function TransferContent(
           onRefresh={fetchFees}
           isSubmitting={isSubmitting}
           onSubmit={handleTransferSubmit}
-          buttonName="TRANSFER"
+          buttonName={isConnected ? "TRANSFER" : "CONNECT WALLET"}
           tosAgreed={tosAgreed}
           onTosChange={setTosAgreed}
         />

@@ -22,6 +22,7 @@ import { Src20Controller } from "./src20Controller.ts";
 import { CAROUSEL_STAMP_IDS } from "$lib/utils/constants.ts";
 import { formatSatoshisToBTC } from "$lib/utils/formatUtils.ts";
 import { logger } from "$lib/utils/logger.ts";
+import { XcpManager } from "$server/services/xcpService.ts";
 
 export class StampController {
   static async getStampDetailsById(id: string, stampType: STAMP_TYPES = "all") {
@@ -514,9 +515,9 @@ export class StampController {
         carouselStamps,
       ] = await Promise.all([
         this.getMultipleStampCategories([
-          { idents: ["STAMP", "SRC-721"], limit: 16 },
+          { idents: ["STAMP", "SRC-721"], limit: 20 },
           { idents: ["SRC-721"], limit: 12 },
-          { idents: ["STAMP"], limit: 16 },
+          { idents: ["STAMP"], limit: 20 },
         ]),
         Src20Controller.fetchSrc20DetailsWithHolders(null, {
           op: "DEPLOY",
@@ -707,6 +708,56 @@ export class StampController {
       logger.error("stamps", {
         message: "Error in updateCreatorName",
         error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
+  }
+
+  static async getDispensersWithStampsByAddress(address: string, options = {}) {
+    try {
+      // First get dispensers
+      const dispensersData = await XcpManager.getDispensersByAddress(address, {
+        verbose: true,
+        ...options
+      });
+
+      if (!dispensersData.dispensers.length) {
+        return {
+          dispensers: [],
+          total: 0
+        };
+      }
+
+      // Get unique CPIDs from dispensers
+      const uniqueCpids = [...new Set(dispensersData.dispensers.map(d => d.cpid))];
+
+      // Fetch stamps data for all CPIDs
+      const stampsData = await this.getStamps({
+        identifier: uniqueCpids,
+        allColumns: true,
+        noPagination: true
+      });
+
+      // Create a map of stamps by CPID for faster lookup
+      const stampsByCpid = new Map(
+        stampsData.data?.map(stamp => [stamp.cpid, stamp]) || []
+      );
+
+      // Merge stamp data into dispensers
+      const dispensersWithStamps = dispensersData.dispensers.map(dispenser => ({
+        ...dispenser,
+        stamp: stampsByCpid.get(dispenser.cpid) || null
+      }));
+
+      return {
+        dispensers: dispensersWithStamps,
+        total: dispensersData.total
+      };
+    } catch (error) {
+      logger.error("getDispensersWithStampsByAddress", {
+        message: "Error fetching dispensers with stamps",
+        error: error instanceof Error ? error.message : String(error),
+        address
       });
       throw error;
     }

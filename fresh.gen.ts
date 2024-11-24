@@ -121,6 +121,11 @@ import * as $Wallet_details_WalletHeader from "./islands/Wallet/details/WalletHe
 import * as $Wallet_details_WalletReceiveModal from "./islands/Wallet/details/WalletReceiveModal.tsx";
 import * as $Wallet_details_WalletSendModal from "./islands/Wallet/details/WalletSendModal.tsx";
 import * as $Wallet_details_WalletTransferModal from "./islands/Wallet/details/WalletTransferModal.tsx";
+import * as $about_AboutContact from "./islands/about/AboutContact.tsx";
+import * as $about_AboutDonate from "./islands/about/AboutDonate.tsx";
+import * as $about_AboutHeader from "./islands/about/AboutHeader.tsx";
+import * as $about_AboutTeam from "./islands/about/AboutTeam.tsx";
+import * as $about_DonateModal from "./islands/about/DonateModal.tsx";
 import * as $block_BlockHeader from "./islands/block/BlockHeader.tsx";
 import * as $block_BlockSelector from "./islands/block/BlockSelector.tsx";
 import * as $block_BlockTransactions from "./islands/block/BlockTransactions.tsx";
@@ -155,14 +160,13 @@ import * as $modules_StampChain from "./islands/modules/StampChain.tsx";
 import * as $modules_Styles from "./islands/modules/Styles.ts";
 import * as $src20_SRC20Header from "./islands/src20/SRC20Header.tsx";
 import * as $src20_SRC20Search from "./islands/src20/SRC20Search.tsx";
-import * as $src20_all_SRC20DeployTable from "./islands/src20/all/SRC20DeployTable.tsx";
+import * as $src20_SRC20Section from "./islands/src20/SRC20Section.tsx";
 import * as $src20_cards_SRC20BaseCard from "./islands/src20/cards/SRC20BaseCard.tsx";
 import * as $src20_cards_SRC20TokenMintingCard from "./islands/src20/cards/SRC20TokenMintingCard.tsx";
 import * as $src20_cards_SRC20TokenOutmintedCard from "./islands/src20/cards/SRC20TokenOutmintedCard.tsx";
 import * as $src20_details_SRC20DetailsTab from "./islands/src20/details/SRC20DetailsTab.tsx";
 import * as $src20_details_SRC20TX from "./islands/src20/details/SRC20TX.tsx";
 import * as $src20_details_SRC20TickHeader from "./islands/src20/details/SRC20TickHeader.tsx";
-import * as $src20_trending_SRC20TrendingMints from "./islands/src20/trending/SRC20TrendingMints.tsx";
 import * as $stamp_StampCard from "./islands/stamp/StampCard.tsx";
 import * as $stamp_StampContent from "./islands/stamp/StampContent.tsx";
 import * as $stamp_StampHeader from "./islands/stamp/StampHeader.tsx";
@@ -180,6 +184,7 @@ import * as $stamping_FeeEstimation from "./islands/stamping/FeeEstimation.tsx";
 import * as $stamping_InputField from "./islands/stamping/InputField.tsx";
 import * as $stamping_SelectField from "./islands/stamping/SelectField.tsx";
 import * as $stamping_StatusMessages from "./islands/stamping/StatusMessages.tsx";
+import * as $stamping_src101_mint_MintContent from "./islands/stamping/src101/mint/MintContent.tsx";
 import * as $stamping_src20_deploy_DeployContent from "./islands/stamping/src20/deploy/DeployContent.tsx";
 import * as $stamping_src20_deploy_RecentDeploy from "./islands/stamping/src20/deploy/RecentDeploy.tsx";
 import * as $stamping_src20_mint_MintContent from "./islands/stamping/src20/mint/MintContent.tsx";
@@ -187,7 +192,6 @@ import * as $stamping_src20_mint_PopularMinting from "./islands/stamping/src20/m
 import * as $stamping_src20_trade_TradeContent from "./islands/stamping/src20/trade/TradeContent.tsx";
 import * as $stamping_src20_transfer_LatestTransfer from "./islands/stamping/src20/transfer/LatestTransfer.tsx";
 import * as $stamping_src20_transfer_TransferContent from "./islands/stamping/src20/transfer/TransferContent.tsx";
-import * as $stamping_stamp_ImageFullScreen from "./islands/stamping/stamp/ImageFullScreen.tsx";
 import * as $stamping_stamp_OlgaContent from "./islands/stamping/stamp/OlgaContent.tsx";
 import * as $upload_UploadImageHeader from "./islands/upload/UploadImageHeader.tsx";
 import * as $upload_UploadImageTable from "./islands/upload/UploadImageTable.tsx";
@@ -344,6 +348,11 @@ const manifest = {
       $Wallet_details_WalletSendModal,
     "./islands/Wallet/details/WalletTransferModal.tsx":
       $Wallet_details_WalletTransferModal,
+    "./islands/about/AboutContact.tsx": $about_AboutContact,
+    "./islands/about/AboutDonate.tsx": $about_AboutDonate,
+    "./islands/about/AboutHeader.tsx": $about_AboutHeader,
+    "./islands/about/AboutTeam.tsx": $about_AboutTeam,
+    "./islands/about/DonateModal.tsx": $about_DonateModal,
     "./islands/block/BlockHeader.tsx": $block_BlockHeader,
     "./islands/block/BlockSelector.tsx": $block_BlockSelector,
     "./islands/block/BlockTransactions.tsx": $block_BlockTransactions,
@@ -383,7 +392,7 @@ const manifest = {
     "./islands/modules/Styles.ts": $modules_Styles,
     "./islands/src20/SRC20Header.tsx": $src20_SRC20Header,
     "./islands/src20/SRC20Search.tsx": $src20_SRC20Search,
-    "./islands/src20/all/SRC20DeployTable.tsx": $src20_all_SRC20DeployTable,
+    "./islands/src20/SRC20Section.tsx": $src20_SRC20Section,
     "./islands/src20/cards/SRC20BaseCard.tsx": $src20_cards_SRC20BaseCard,
     "./islands/src20/cards/SRC20TokenMintingCard.tsx":
       $src20_cards_SRC20TokenMintingCard,
@@ -394,8 +403,6 @@ const manifest = {
     "./islands/src20/details/SRC20TX.tsx": $src20_details_SRC20TX,
     "./islands/src20/details/SRC20TickHeader.tsx":
       $src20_details_SRC20TickHeader,
-    "./islands/src20/trending/SRC20TrendingMints.tsx":
-      $src20_trending_SRC20TrendingMints,
     "./islands/stamp/StampCard.tsx": $stamp_StampCard,
     "./islands/stamp/StampContent.tsx": $stamp_StampContent,
     "./islands/stamp/StampHeader.tsx": $stamp_StampHeader,
@@ -417,6 +424,8 @@ const manifest = {
     "./islands/stamping/InputField.tsx": $stamping_InputField,
     "./islands/stamping/SelectField.tsx": $stamping_SelectField,
     "./islands/stamping/StatusMessages.tsx": $stamping_StatusMessages,
+    "./islands/stamping/src101/mint/MintContent.tsx":
+      $stamping_src101_mint_MintContent,
     "./islands/stamping/src20/deploy/DeployContent.tsx":
       $stamping_src20_deploy_DeployContent,
     "./islands/stamping/src20/deploy/RecentDeploy.tsx":
@@ -431,8 +440,6 @@ const manifest = {
       $stamping_src20_transfer_LatestTransfer,
     "./islands/stamping/src20/transfer/TransferContent.tsx":
       $stamping_src20_transfer_TransferContent,
-    "./islands/stamping/stamp/ImageFullScreen.tsx":
-      $stamping_stamp_ImageFullScreen,
     "./islands/stamping/stamp/OlgaContent.tsx": $stamping_stamp_OlgaContent,
     "./islands/upload/UploadImageHeader.tsx": $upload_UploadImageHeader,
     "./islands/upload/UploadImageTable.tsx": $upload_UploadImageTable,

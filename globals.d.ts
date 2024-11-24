@@ -103,14 +103,15 @@ export interface StampRow {
 
 export interface DisplayCountBreakpoints {
   "mobileSm": number; // 360px+
-  "mobileMd"?: number; // 421px+ - implement in stampsection if needed
-  "mobileLg": number; // 569px+
-  "tablet": number; // 769px+
-  "desktop": number; // 1025px+
+  "mobileMd"?: number; // 568
+  "mobileLg": number; // 768px+
+  "tablet": number; // 1024px+
+  "desktop": number; // 1440px+
 }
 
 export interface StampSectionProps {
-  title: string;
+  title?: string;
+  subtitle?: string;
   type?: string;
   stamps: StampRow[];
   layout: "grid" | "row";
@@ -124,8 +125,9 @@ export interface StampSectionProps {
   variant?: "default" | "grey";
   viewAllLink?: string;
 }
-
 export interface CollectionSectionProps {
+  title?: string;
+  subTitle?: string;
   collections: Collection[];
   gridClass?: string;
   displayCounts?: DisplayCountBreakpoints;

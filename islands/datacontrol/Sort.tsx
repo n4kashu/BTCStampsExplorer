@@ -22,12 +22,14 @@ export function Sort({ initSort = "DESC" }: SortProps) {
   return (
     <button
       onClick={handleSortChange}
-      class="border-2 border-[#660099] px-[10px] py-[10px] rounded-md"
+      class="border-2 border-[#8800CC] bg-transparent px-[10px] py-[10px] rounded-md"
     >
       <img
-        src={`/img/stamp/Sort${
-          localSort === "DESC" ? "Ascending" : "Descending"
-        }.png`}
+        src={`${
+          localSort === "DESC"
+            ? "/img/stamp/SortAscending"
+            : "/img/stamp/SortDescending"
+        }.svg`}
         alt={`Sort ${localSort === "DESC" ? "ascending" : "descending"}`}
       />
     </button>

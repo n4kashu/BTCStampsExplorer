@@ -2,7 +2,11 @@ import { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import WalletSendModal from "$islands/Wallet/details/WalletSendModal.tsx";
 import WalletReceiveModal from "$islands/Wallet/details/WalletReceiveModal.tsx";
-import { WalletData } from "$types/index.d.ts";
+import {
+  WalletData,
+  WalletOverviewInfo,
+  WalletStatsProps,
+} from "$lib/types/index.d.ts";
 import { Button } from "$components/shared/Button.tsx";
 import { abbreviateAddress } from "$lib/utils/formatUtils.ts";
 
@@ -15,7 +19,7 @@ function WalletDetails(
     setShowItem: (type: string) => void;
   },
 ) {
-  const [fee, setFee] = useState<number>(walletData.fee);
+  const [fee, setFee] = useState<number>(walletData.fee || 0);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
 
@@ -32,6 +36,7 @@ function WalletDetails(
           stampsTotal={stampsTotal}
           src20Total={src20Total}
           stampsCreated={stampsCreated}
+          dispensers={walletData.dispensers}
         />
       </div>
 
@@ -55,7 +60,7 @@ function WalletDetails(
 
 function WalletOverview(
   { walletData, onSend, onReceive }: {
-    walletData: WalletData;
+    walletData: WalletOverviewInfo;
     onSend: () => void;
     onReceive: () => void;
   },
@@ -152,12 +157,13 @@ function WalletOverview(
 }
 
 function WalletStats(
-  { stampsTotal, src20Total, stampsCreated, setShowItem = () => {} }: {
-    stampsTotal: number;
-    src20Total: number;
-    stampsCreated: number;
-    setShowItem: (type: string) => void;
-  },
+  {
+    stampsTotal,
+    src20Total,
+    stampsCreated,
+    dispensers,
+    setShowItem = () => {},
+  }: WalletStatsProps,
 ) {
   const handleType = (type: string) => {
     setShowItem(type);
@@ -170,7 +176,7 @@ function WalletStats(
         stampsCreated={stampsCreated}
         handleType={handleType}
       />
-      <DispenserStats handleType={handleType} />
+      <DispenserStats dispensers={dispensers} handleType={handleType} />
       <TokenStats src20Total={src20Total} handleType={handleType} />
     </div>
   );
@@ -197,7 +203,10 @@ function StampStats(
 }
 
 function DispenserStats(
-  { handleType }: { handleType: (type: string) => void },
+  { handleType, dispensers = { open: 0, closed: 0, total: 0 } }: {
+    handleType: (type: string) => void;
+    dispensers?: { open: number; closed: number; total: number };
+  },
 ) {
   return (
     <div
@@ -205,11 +214,19 @@ function DispenserStats(
       onClick={() => handleType("dispenser")}
     >
       <div class="flex justify-between">
-        <StatItem label="LISTINGS" value="N/A" align="left" />
+        <StatItem
+          label="LISTINGS"
+          value={dispensers.open.toString()}
+          align="left"
+        />
         <div class="hidden mobileLg:block desktop:hidden">
           <StatItem label="ATOMIC" value="N/A" align="left" />
         </div>
-        <StatItem label="SOLD" value="N/A" align="right" />
+        <StatItem
+          label="SOLD"
+          value={dispensers.closed.toString()}
+          align="right"
+        />
       </div>
     </div>
   );

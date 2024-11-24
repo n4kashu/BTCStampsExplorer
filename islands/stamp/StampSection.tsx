@@ -5,11 +5,14 @@ import { ViewAllButton } from "$components/shared/ViewAllButton.tsx";
 import { useWindowSize } from "$lib/hooks/useWindowSize.ts";
 import { Pagination } from "$islands/datacontrol/Pagination.tsx";
 import { BREAKPOINTS } from "$client/utils/constants.ts";
+import { ModulesStyles } from "$islands/modules/Styles.ts";
 
 export default function StampSection({
   title,
+  subTitle,
   type,
   stamps,
+  layout,
   isRecentSales,
   filterBy,
   showDetails = false,
@@ -25,7 +28,7 @@ export default function StampSection({
   const [isLoading, setIsLoading] = useState(false);
   const { width } = useWindowSize();
 
-  // Build the "See All" link parameters
+  // Build the "See All"  link parameters
   const params = new URLSearchParams();
   if (isRecentSales) {
     params.append("recentSales", "true");
@@ -81,27 +84,21 @@ export default function StampSection({
   }, [pagination?.page]);
 
   return (
-    <div
-      class={`
-        w-full
-        pt-[2px] pb-[18px]
-        mobileSm:pt-[2px] mobileSm:pb-[18px]
-        mobileLg:pt-[2px] mobileLg:pb-[36px]
-        tablet:pt-[2px] tablet:pb-[72px]
-        desktop:pt-[2px] desktop:pb-[72px]
-      `}
-    >
+    <div class="w-full">
       {title && (
-        <div class="mb-2">
-          <h2 class="
-            text-2xl
-            mobileSm:text-2xl
-            mobileLg:text-4xl
-            tablet:text-4xl
-            desktop:text-5xl
-            font-extralight bg-text-purple-2 bg-clip-text text-transparent
-          ">
+        <div class="flex flex-col items-start tablet:items-end">
+          <h1 class={`${ModulesStyles.titlePurpleDL} tablet:hidden`}>
             {title}
+          </h1>
+          <h1 class={`hidden tablet:block ${ModulesStyles.titlePurpleLD}`}>
+            {title}
+          </h1>
+        </div>
+      )}
+      {subTitle && (
+        <div class="flex flex-col items-start tablet:items-end">
+          <h2 className={ModulesStyles.subTitlePurple}>
+            {subTitle}
           </h2>
         </div>
       )}

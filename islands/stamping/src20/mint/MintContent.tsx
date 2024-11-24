@@ -2,10 +2,13 @@ import axiod from "axiod";
 import { useEffect, useState } from "preact/hooks";
 
 import { useSRC20Form } from "$client/hooks/useSRC20Form.ts";
+import { walletContext } from "$client/wallet/wallet.ts";
 
 import { FeeEstimation } from "$islands/stamping/FeeEstimation.tsx";
 import { StatusMessages } from "$islands/stamping/StatusMessages.tsx";
 import { InputField } from "$islands/stamping/InputField.tsx";
+
+import { logger } from "$lib/utils/logger.ts";
 
 interface MintProgressProps {
   progress: string;
@@ -19,7 +22,7 @@ const MintProgress = (
 ) => {
   return (
     <div className="flex justify-between text-stamp-grey items-end">
-      <div className="min-w-[420px] flex flex-col gap-[6px]">
+      <div className="w-1/2 flex flex-col gap-[6px]">
         <p className="text-xl mobileLg:text-2xl font-light text-stamp-grey-light">
           <span className="text-stamp-grey-darker">PROGRESS</span>{" "}
           <span className="font-bold">
@@ -34,7 +37,7 @@ const MintProgress = (
           />
         </div>
       </div>
-      <div className="text-sm mobileLg:text-base font-light text-stamp-grey-darker text-right">
+      <div className="w-1/2 text-sm mobileLg:text-base font-light text-stamp-grey-darker text-right">
         <p>
           SUPPLY{" "}
           <span className="text-stamp-grey-light font-bold">{maxSupply}</span>
@@ -83,6 +86,8 @@ export function MintContent({
   const [holders, setHolders] = useState<number>(initialHolders || 0);
   const [error, setError] = useState<string | null>(null);
   const [tosAgreed, setTosAgreed] = useState(false);
+
+  const { wallet, isConnected } = walletContext;
 
   // Adjusted useEffect hook to always fetch data when token changes
   useEffect(() => {
@@ -148,6 +153,14 @@ export function MintContent({
   }
 
   const handleMintSubmit = async () => {
+    if (!isConnected) {
+      logger.debug("stamps", {
+        message: "Showing wallet connect modal - user not connected",
+      });
+      walletContext.showConnectModal();
+      return;
+    }
+
     try {
       await handleSubmit();
     } catch (error) {
@@ -158,7 +171,7 @@ export function MintContent({
   const bodyToolsClassName =
     "flex flex-col w-full items-center gap-3 mobileMd:gap-6";
   const titlePurpleLDCenterClassName =
-    "text-3xl mobileMd:text-4xl mobileLg:text-5xl desktop:text-6xl font-black purple-gradient3 w-full text-center";
+    "inline-block text-3xl mobileMd:text-4xl mobileLg:text-5xl desktop:text-6xl font-black purple-gradient3 w-full text-center";
   const feeSelectorContainerClassName =
     "p-3 mobileMd:p-6 dark-gradient z-[10] w-full";
   const inputFieldContainerClassName =
@@ -179,7 +192,7 @@ export function MintContent({
         <div className="w-full flex gap-3 mobileMd:gap-6">
           <div
             id="image-preview"
-            class="relative rounded-md items-center justify-center mx-auto text-center cursor-pointer min-w-[108px] mobileMd:min-w-[120px] w-[108px] mobileMd:w-[120px] h-[108px] mobileMd:h-[120px] content-center bg-[#660099] flex flex-col"
+            class="relative rounded-md items-center justify-center mx-auto text-center min-w-[108px] mobileMd:min-w-[120px] w-[108px] mobileMd:w-[120px] h-[108px] mobileMd:h-[120px] content-center bg-[#660099] flex flex-col"
           >
             <img
               src="/img/stamping/image-upload.svg"
@@ -228,7 +241,7 @@ export function MintContent({
           onRefresh={fetchFees}
           isSubmitting={isSubmitting}
           onSubmit={handleMintSubmit}
-          buttonName="MINT"
+          buttonName={isConnected ? "MINT" : "CONNECT WALLET"}
           tosAgreed={tosAgreed}
           onTosChange={setTosAgreed}
         />

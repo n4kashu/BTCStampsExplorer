@@ -6,13 +6,15 @@ import {
   SRC20TrxRequestParams,
 } from "globals";
 import { StampService } from "$server/services/stampService.ts";
-import { BTCAddressService } from "$server/services/btc/addressService.ts";
 import { BlockService } from "$server/services/blockService.ts";
 import { convertToEmoji } from "$lib/utils/emojiUtils.ts";
 import { SRC20MarketService } from "$server/services/src20/marketService.ts";
 import { MarketListingSummary } from "$types/index.d.ts";
-import { fetchBTCPriceInUSD } from "$lib/utils/btc.ts";
+import { fetchBTCPriceInUSD } from "$lib/utils/balanceUtils.ts";
 import { serverConfig } from "$server/config/config.ts";
+import { getAddressInfo } from "$lib/utils/balanceUtils.ts";
+import { formatUSDValue } from "$lib/utils/formatUtils.ts";
+import { WalletData } from "$lib/types/index.d.ts";
 
 export class Src20Controller {
   static async getTotalCountValidSrc20Tx(
@@ -152,80 +154,6 @@ export class Src20Controller {
       return await SRC20Service.QueryService.checkMintedOut(tick, amount);
     } catch (error) {
       console.error("Error checking minted out status:", error);
-      throw error;
-    }
-  }
-
-  static async handleWalletBalanceRequest(
-    address: string,
-    limit = 50,
-    page = 1,
-  ) {
-    try {
-      const subLimit = Math.ceil(limit / 2);
-
-      const [
-        btcInfo,
-        stampsResponse,
-        src20Response,
-        lastBlock,
-        btcPrice,
-      ] = await Promise.allSettled([
-        BTCAddressService.getAddressInfo(address),
-        StampService.getStampBalancesByAddress(address, subLimit, page),
-        this.handleSrc20BalanceRequest({
-          address,
-          limit: subLimit,
-          page,
-          sortBy: "ASC",
-        }),
-        BlockService.getLastBlock(),
-        fetchBTCPriceInUSD(serverConfig.API_BASE_URL),
-      ]);
-
-      const btcData = btcInfo.status === "fulfilled" ? btcInfo.value : null;
-      const stampsData = stampsResponse.status === "fulfilled"
-        ? stampsResponse.value
-        : { stamps: [], total: 0 };
-      const src20Data = src20Response.status === "fulfilled"
-        ? src20Response.value
-        : { data: [], last_block: 0 };
-      const lastBlockData = lastBlock.status === "fulfilled"
-        ? lastBlock.value
-        : null;
-      const usdPrice = btcPrice.status === "fulfilled" ? btcPrice.value : 0;
-
-      const stampsTotal = stampsData.total || 0;
-      const src20Total = Array.isArray(src20Data.data)
-        ? src20Data.data.length
-        : 0;
-      const totalItems = stampsTotal + src20Total;
-      const totalPages = Math.ceil(totalItems / limit);
-
-      const walletData = {
-        balance: btcData?.balance ?? 0,
-        usdValue: (btcData?.balance ?? 0) * usdPrice,
-        address,
-        fee: btcData?.fee_per_vbyte ?? 0, // FIXME: Update to fetch next block fee
-        btcPrice: usdPrice,
-      };
-
-      return {
-        btc: walletData,
-        data: {
-          stamps: stampsData.stamps,
-          src20: Array.isArray(src20Data.data) ? src20Data.data : [],
-        },
-        pagination: {
-          page,
-          limit,
-          total: totalItems,
-          totalPages,
-        },
-        last_block: src20Data.last_block || lastBlockData?.last_block || 0,
-      };
-    } catch (error) {
-      console.error("Error processing wallet balance request:", error);
       throw error;
     }
   }

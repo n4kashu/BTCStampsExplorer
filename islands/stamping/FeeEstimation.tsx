@@ -1,8 +1,11 @@
 import { useEffect, useState } from "preact/hooks";
 import { useFeePolling } from "$client/hooks/useFeePolling.ts";
+import { walletContext } from "$client/wallet/wallet.ts";
 import { estimateFee } from "$lib/utils/minting/feeCalculations.ts";
-import type { AncestorInfo, Output, ScriptType } from "$types/index.d.ts";
 import { calculateTransactionFees } from "$lib/utils/minting/feeEstimator.ts";
+import { formatSatoshisToBTC } from "$lib/utils/formatUtils.ts";
+import { logger } from "$lib/utils/logger.ts";
+import type { AncestorInfo, Output, ScriptType } from "$types/index.d.ts";
 
 interface FeeEstimationProps {
   fee: number;
@@ -74,10 +77,19 @@ export function FeeEstimation({
   const [total, setTotal] = useState(0.0);
   const [coinType, setCoinType] = useState("BTC");
 
+  const { wallet, isConnected } = walletContext;
+
   // Update fee when recommended fee changes
   useEffect(() => {
     if (fees && !loading) {
       const recommendedFee = Math.round(fees.recommendedFee);
+      logger.debug("stamps", {
+        message: "Updating recommended fee",
+        data: {
+          recommendedFee,
+          currentFee: fee,
+        },
+      });
       handleChangeFee(recommendedFee);
     }
   }, [fees, loading]);
@@ -92,30 +104,81 @@ export function FeeEstimation({
 
   useEffect(() => {
     if (fileSize && fee) {
-      console.log("FeeEstimation: Starting fee calculation", {
-        fileSize,
-        feeRate: fee,
-        hasExactFees: feeDetails?.hasExactFees,
-        userAddress,
-        utxoAncestors: utxoAncestors?.length,
+      logger.debug("stamps", {
+        message: "Starting fee calculation",
+        data: {
+          fileSize,
+          feeRate: fee,
+          hasExactFees: feeDetails?.hasExactFees,
+          userAddress,
+          utxoAncestors: utxoAncestors?.length,
+        },
       });
 
       if (feeDetails?.hasExactFees) {
-        console.log("FeeEstimation: Using exact fees from backend", {
-          minerFee: feeDetails.minerFee,
-          dustValue: feeDetails.dustValue,
-          totalValue: feeDetails.totalValue,
+        const minerFee = feeDetails.minerFee ?? 0;
+
+        // Calculate total dust by summing all data output values
+        // In your case, this is 333 + 334 + 335 + ... for each data output
+        const dustValue = feeDetails.dustValue ?? 0;
+
+        logger.debug("stamps", {
+          message: "Fee calculation components",
+          data: {
+            minerFee,
+            dustValue,
+            currentTotal: total,
+            newTotal: minerFee + dustValue,
+          },
         });
 
-        setTxfee(feeDetails.minerFee ?? 0);
-        setDust(feeDetails.dustValue ?? 0);
-        setTotal(feeDetails.totalValue ?? 0);
+        // Only update state if values have changed
+        const newTotal = minerFee + dustValue;
+
+        if (txfee !== minerFee) {
+          logger.debug("stamps", {
+            message: "Updating miner fee",
+            data: { old: txfee, new: minerFee },
+          });
+          setTxfee(minerFee);
+        }
+
+        if (dust !== dustValue) {
+          logger.debug("stamps", {
+            message: "Updating dust value",
+            data: { old: dust, new: dustValue },
+          });
+          setDust(dustValue);
+        }
+
+        if (total !== newTotal) {
+          logger.debug("stamps", {
+            message: "Updating total",
+            data: {
+              oldTotal: total,
+              newTotal,
+              inBTC: formatSatoshisToBTC(newTotal, { includeSymbol: false }),
+              components: {
+                minerFee,
+                dustValue,
+              },
+            },
+          });
+          setTotal(newTotal);
+        }
       } else {
-        // Fall back to estimation
-        console.log("FeeEstimation: Using frontend estimation");
+        logger.debug("stamps", {
+          message: "Using frontend estimation",
+        });
+
         const { minerFee, dustValue, detectedInputType } =
           calculateTransactionFees({
-            type: type as "stamp" | "src20" | "fairmint" | "transfer",
+            type: type as
+              | "stamp"
+              | "src20"
+              | "fairmint"
+              | "transfer"
+              | "donate",
             fileSize,
             userAddress,
             outputTypes,
@@ -124,11 +187,14 @@ export function FeeEstimation({
             utxoAncestors,
           });
 
-        console.log("FeeEstimation: Frontend calculation results", {
-          minerFee,
-          dustValue,
-          detectedInputType,
-          totalWithMintFee: minerFee + dustValue + (mintfee * 1e8),
+        logger.debug("stamps", {
+          message: "Frontend calculation results",
+          data: {
+            minerFee,
+            dustValue,
+            detectedInputType,
+            totalWithMintFee: minerFee + dustValue + (mintfee * 1e8),
+          },
         });
 
         setTxfee(minerFee);
@@ -136,16 +202,7 @@ export function FeeEstimation({
         setTotal(minerFee + dustValue + (mintfee * 1e8));
       }
     }
-  }, [
-    fileSize,
-    fee,
-    type,
-    userAddress,
-    outputTypes,
-    mintfee,
-    utxoAncestors,
-    feeDetails,
-  ]);
+  }, [fileSize, fee]);
 
   // Define the coin icons
   const btcIcon = (
@@ -179,36 +236,65 @@ export function FeeEstimation({
   );
 
   const handleChangeCoin = () => {
-    setCoinType((prevType) => (prevType === "BTC" ? "USDT" : "BTC"));
+    const newCoinType = coinType === "BTC" ? "USDT" : "BTC";
+    logger.debug("stamps", {
+      message: "Changing display currency",
+      data: {
+        from: coinType,
+        to: newCoinType,
+        currentTotal: total,
+        totalInBTC: formatSatoshisToBTC(total, { includeSymbol: false }),
+        totalInUSD:
+          (Number(formatSatoshisToBTC(total, { includeSymbol: false })) *
+            BTCPrice).toFixed(2),
+      },
+    });
+    setCoinType(newCoinType);
   };
 
   // Fee selector component
-  const renderFeeSelector = () => (
-    <div className={`flex flex-col w-full ${isModal ? "w-full" : "w-1/2"}`}>
-      <p className="text-base mobileLg:text-lg text-stamp-grey-light font-light">
-        <span className="text-stamp-grey-darker">FEE</span>{" "}
-        <span className="font-bold">{fee}</span> SAT/vB
-      </p>
-      {fees?.recommendedFee && (
-        <p className="mb-3 text-sm mobileLg:text-base text-stamp-grey-light font-light">
-          <span className="text-stamp-grey-darker">RECOMMENDED</span>{" "}
-          <span className="font-medium">{fees.recommendedFee}</span> SAT/vB
+  const renderFeeSelector = () => {
+    const handleFeeChange = (newFee: number) => {
+      logger.debug("stamps", {
+        message: "Manual fee rate change",
+        data: {
+          oldFee: fee,
+          newFee,
+          recommendedFee: fees?.recommendedFee,
+        },
+      });
+      handleChangeFee(newFee);
+    };
+
+    return (
+      <div className={`flex flex-col ${isModal ? "w-full" : "w-1/2"}`}>
+        <p className="text-base mobileLg:text-lg text-stamp-grey-light font-light">
+          <span className="text-stamp-grey-darker">FEE</span>{" "}
+          <span className="font-bold">{fee}</span> SAT/vB
         </p>
-      )}
-      <div className="relative w-full">
-        <input
-          type="range"
-          value={fee}
-          min="1"
-          max="264"
-          step="1"
-          onInput={(e) =>
-            handleChangeFee(parseInt((e.target as HTMLInputElement).value, 10))}
-          className="accent-stamp-purple-dark w-full h-[6px] rounded-lg appearance-none cursor-pointer bg-stamp-grey [&::-webkit-slider-thumb]:w-[22px] [&::-webkit-slider-thumb]:h-[22px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-stamp-purple-dark [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-[22px] [&::-moz-range-thumb]:h-[22px] [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:bg-stamp-purple-dark [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
-        />
+        {fees?.recommendedFee && (
+          <p className="mb-3 text-sm mobileLg:text-base text-stamp-grey-light font-light">
+            <span className="text-stamp-grey-darker">RECOMMENDED</span>{" "}
+            <span className="font-medium">{fees.recommendedFee}</span> SAT/vB
+          </p>
+        )}
+        <div className="relative w-full">
+          <input
+            type="range"
+            value={fee}
+            min="1"
+            max="264"
+            step="1"
+            onInput={(e) =>
+              handleFeeChange(
+                parseInt((e.target as HTMLInputElement).value, 10),
+              )}
+            className="accent-stamp-purple-dark w-full h-[6px] rounded-lg appearance-none cursor-pointer bg-stamp-grey [&::-webkit-slider-thumb]:w-[22px] [&::-webkit-slider-thumb]:h-[22px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-stamp-purple-dark [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-[22px] [&::-moz-range-thumb]:h-[22px] [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:bg-stamp-purple-dark [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+          />
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Estimate details component
   const renderDetails = () => {
@@ -216,7 +302,7 @@ export function FeeEstimation({
       const detailsTitleClassName = "text-stamp-grey-darker font-light";
       const detailsTextClassName =
         "text-xs mobileLg:text-sm font-medium text-stamp-grey-light";
-      // Modal-specific details view
+
       return (
         <div className="flex flex-col gap-2 mt-2">
           {fileSize && (
@@ -228,20 +314,23 @@ export function FeeEstimation({
           )}
 
           <p className={detailsTextClassName}>
-            <span className={detailsTitleClassName}>MINER FEE</span> {txfee}
-            {" "}
-            <span className="font-light">SATS</span>
+            <span className={detailsTitleClassName}>MINER FEE</span>{" "}
+            {formatSatoshisToBTC(txfee, { includeSymbol: false })}{" "}
+            <span className="font-light">BTC</span>
           </p>
           {mintfee > 0 && (
             <p className={detailsTextClassName}>
               <span className={detailsTitleClassName}>SERVICE FEE</span>{" "}
-              {mintfee} <span className="font-light">SATS</span>
+              {formatSatoshisToBTC(mintfee * 1e8, { includeSymbol: false })}
+              {" "}
+              <span className="font-light">BTC</span>
             </p>
           )}
           {dust > 0 && (
             <p className={detailsTextClassName}>
-              <span className={detailsTitleClassName}>DUST</span> {dust}{" "}
-              <span className="font-light">SATS</span>
+              <span className={detailsTitleClassName}>DUST</span>{" "}
+              {formatSatoshisToBTC(dust, { includeSymbol: false })}{" "}
+              <span className="font-light">BTC</span>
             </p>
           )}
         </div>
@@ -276,19 +365,21 @@ export function FeeEstimation({
 
         <p className={detailsTextClassName}>
           <span className={detailsTitleClassName}>MINER FEE</span>{" "}
-          {txfee.toFixed(0)} <span className="font-light">SATS</span>
+          {formatSatoshisToBTC(txfee, { includeSymbol: false })}{" "}
+          <span className="font-light">BTC</span>
         </p>
         {mintfee > 0 && (
           <p className={detailsTextClassName}>
             <span className={detailsTitleClassName}>MINTING FEE</span>{" "}
-            {(mintfee * 1e8).toFixed(0)}{" "}
-            <span className="font-light">SATS</span>
+            {formatSatoshisToBTC(mintfee * 1e8, { includeSymbol: false })}{" "}
+            <span className="font-light">BTC</span>
           </p>
         )}
         {dust > 0 && (
           <p className={detailsTextClassName}>
             <span className={detailsTitleClassName}>DUST</span>{" "}
-            {dust.toFixed(0)} <span className="font-light">SATS</span>
+            {formatSatoshisToBTC(dust, { includeSymbol: false })}{" "}
+            <span className="font-light">BTC</span>
           </p>
         )}
       </div>
@@ -302,37 +393,59 @@ export function FeeEstimation({
   const renderModalActions = () => (
     <div className="flex flex-col items-end gap-4 mt-4">
       {!isModal && (
-        <div className="flex gap-2 items-center">
+        <div class="relative flex items-center">
           <input
             type="checkbox"
             id="tosAgreed"
             checked={tosAgreed}
-            onChange={(e) => onTosChange(e.target.checked)}
-            className="w-3 h-3 bg-[#262424] border border-[#7F7979]"
+            onChange={(e) => {
+              const target = e.target as HTMLInputElement;
+              onTosChange(target.checked);
+            }}
+            className="absolute w-0 h-0 opacity-0" // Hide the default checkbox
           />
           <label
             htmlFor="tosAgreed"
-            className={`text-xs mobileLg:text-sm font-medium ${
-              tosAgreed ? "text-stamp-grey-light" : "text-stamp-grey"
-            }`}
+            className="flex items-center cursor-pointer"
           >
-            I AGREE TO THE{" "}
-            <span className="text-stamp-purple">
-              <span className="mobileLg:hidden">
-                <a
-                  href="/termsofservice"
-                  className="hover:text-stamp-purple-highlight"
+            <div
+              className={`w-3 h-3 border border-[#7F7979] mr-2 flex items-center justify-center bg-[#999999] rounded-[2px]`}
+            >
+              {tosAgreed && (
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-2 h-2 text-[#333333]"
                 >
-                  ToS
-                </a>
-              </span>
-              <span className="hidden mobileLg:inline">
-                <a
-                  href="/termsofservice"
-                  class="hover:text-stamp-purple-highlight"
-                >
-                  TERMS OF SERVICE
-                </a>
+                  <path
+                    fill="currentColor"
+                    d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+                  />
+                </svg>
+              )}
+            </div>
+            <span
+              className={`text-xs mobileLg:text-sm font-medium ${
+                tosAgreed ? "text-stamp-grey-light" : "text-stamp-grey"
+              }`}
+            >
+              I AGREE TO THE{" "}
+              <span className="text-stamp-purple">
+                <span className="mobileLg:hidden">
+                  <a
+                    href="/termsofservice"
+                    className="hover:text-stamp-purple-highlight"
+                  >
+                    ToS
+                  </a>
+                </span>
+                <span className="hidden mobileLg:inline">
+                  <a
+                    href="/termsofservice"
+                    className="hover:text-stamp-purple-highlight"
+                  >
+                    TERMS OF SERVICE
+                  </a>
+                </span>
               </span>
             </span>
           </label>
@@ -354,7 +467,11 @@ export function FeeEstimation({
           </button>
         )}
         <button
-          className={`${buttonPurpleFlatClassName} ${
+          className={`${
+            isConnected
+              ? buttonPurpleFlatClassName
+              : buttonPurpleOutlineClassName
+          } ${
             (disabled || isSubmitting || (!isModal && !tosAgreed))
               ? "opacity-50 cursor-not-allowed"
               : ""
@@ -367,6 +484,23 @@ export function FeeEstimation({
       </div>
     </div>
   );
+
+  // Add logging to the details toggle
+  const handleDetailsToggle = () => {
+    logger.debug("stamps", {
+      message: "Toggling fee details visibility",
+      data: {
+        currentlyVisible: visible,
+        feeComponents: {
+          minerFee: txfee,
+          dustValue: dust,
+          mintingFee: mintfee,
+          total,
+        },
+      },
+    });
+    setVisible(!visible);
+  };
 
   return (
     <div className={`text-[#999999] ${className}`}>
@@ -396,13 +530,17 @@ export function FeeEstimation({
         {coinType === "BTC"
           ? (
             <>
-              <span className="font-bold">{total.toFixed(0)}</span> SATS
+              <span className="font-bold">
+                {formatSatoshisToBTC(total, { includeSymbol: false })}
+              </span>{" "}
+              BTC
             </>
           )
           : (
             <>
               <span className="font-bold">
-                {(total / 1e8 * BTCPrice).toFixed(2)}
+                {(Number(formatSatoshisToBTC(total, { includeSymbol: false })) *
+                  BTCPrice).toFixed(2)}
               </span>{" "}
               {coinType}
             </>
@@ -410,31 +548,13 @@ export function FeeEstimation({
       </p>
 
       <div
-        onClick={() => setVisible(!visible)}
-        className="flex items-center gap-1 uppercase mt-2 text-xs cursor-pointer"
+        onClick={handleDetailsToggle}
+        className="flex items-center gap-1 uppercase mt-2 text-xs cursor-pointer text-[#666666]"
       >
         DETAILS
         {!visible
-          ? (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="1em"
-              height="1em"
-              viewBox="0 0 24 24"
-            >
-              <path fill="white" d="M12 8l6 6H6l6-6z" />
-            </svg>
-          )
-          : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="1em"
-              height="1em"
-              viewBox="0 0 24 24"
-            >
-              <path fill="white" d="M12 16l-6-6h12l-6 6z" />
-            </svg>
-          )}
+          ? <img src="/img/stamping/CaretDown.svg" />
+          : <img src="/img/stamping/CaretDown.svg" class="rotate-180" />}
       </div>
 
       {renderDetails()}

@@ -1,10 +1,15 @@
 import { signal } from "@preact/signals";
 import { walletContext } from "./wallet.ts";
 import { SignPSBTResult, Wallet } from "$types/index.d.ts";
+import { checkWalletAvailability, getGlobalWallets } from "./wallet.ts";
+import { handleWalletError } from "./walletHelper.ts";
+import { getAddressBalance } from "$lib/utils/balanceUtils.ts";
 
 export const isPhantomInstalled = signal<boolean>(false);
 
-export const connectPhantom = async (addToast) => {
+export const connectPhantom = async (
+  addToast: (message: string, type: string) => void,
+) => {
   try {
     const provider = getProvider();
     if (!provider) {
@@ -17,30 +22,25 @@ export const connectPhantom = async (addToast) => {
     const accounts = await provider.requestAccounts();
     await handleAccountsChanged(accounts);
     addToast("Successfully connected to Phantom wallet", "success");
-  } catch (error) {
-    addToast(`Failed to connect to Phantom wallet: ${error.message}`, "error");
+  } catch (error: unknown) {
+    addToast(
+      `Failed to connect to Phantom wallet: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
+      "error",
+    );
   }
 };
 
 const getProvider = () => {
-  if ("phantom" in globalThis) {
-    const provider = globalThis.phantom?.bitcoin;
-    if (provider?.isPhantom) {
-      return provider;
-    }
-  }
-  return null;
+  const wallets = getGlobalWallets();
+  return wallets.phantom?.bitcoin;
 };
 
 export const checkPhantom = () => {
-  const provider = getProvider();
-  if (provider) {
-    isPhantomInstalled.value = true;
-    provider.on("accountsChanged", handleAccountsChanged);
-    return true;
-  }
-  isPhantomInstalled.value = false;
-  return false;
+  const isAvailable = checkWalletAvailability("phantom");
+  isPhantomInstalled.value = isAvailable;
+  return isAvailable;
 };
 
 const handleAccountsChanged = async (accounts: any[]) => {
@@ -55,7 +55,18 @@ const handleAccountsChanged = async (accounts: any[]) => {
   _wallet.publicKey = accounts[0]?.publicKey;
 
   // Phantom doesn't provide a direct method to get balance
-  // _wallet.btcBalance = await getBtcBalance(_wallet.address);
+  if (_wallet.address) {
+    const confirmedBalance = await getAddressBalance(_wallet.address, {
+      format: "BTC",
+      fallbackValue: 0,
+    });
+
+    _wallet.btcBalance = {
+      confirmed: confirmedBalance ?? 0,
+      unconfirmed: 0,
+      total: confirmedBalance ?? 0,
+    };
+  }
 
   const basicInfo = await walletContext.getBasicStampInfo(_wallet.address);
   _wallet.stampBalance = basicInfo.stampBalance;
@@ -150,12 +161,8 @@ const signPSBT = async (
         error: "Unexpected result format from Phantom wallet",
       };
     }
-  } catch (error) {
-    console.error("Error signing PSBT with Phantom:", error);
-    if (error.message && error.message.includes("User rejected")) {
-      return { signed: false, cancelled: true };
-    }
-    return { signed: false, error: error.message };
+  } catch (error: unknown) {
+    return handleWalletError(error, "Phantom");
   }
 };
 

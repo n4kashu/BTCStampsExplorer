@@ -4,29 +4,10 @@ import { Handlers } from "$fresh/server.ts";
 import WalletHeader from "$islands/Wallet/details/WalletHeader.tsx";
 import WalletDetails from "$islands/Wallet/details/WalletDetails.tsx";
 import WalletContent from "$islands/Wallet/details/WalletContent.tsx";
-import { BTCAddressService } from "$server/services/btc/addressService.ts";
 import { serverConfig } from "$server/config/config.ts";
-import { fetchBTCPriceInUSD } from "$lib/utils/btc.ts";
-import { WalletData } from "$types/index.d.ts";
-
-type WalletPageProps = {
-  data: {
-    data: {
-      stamps: any[];
-      src20: any[];
-    };
-    address: string;
-    walletData: WalletData;
-    stampsTotal: number;
-    src20Total: number;
-    pagination: {
-      page: number;
-      limit: number;
-      totalPages: number;
-      total: number;
-    };
-  };
-};
+import { Dispenser, WalletData, WalletPageProps } from "$lib/types/index.d.ts";
+import { StampController } from "$server/controller/stampController.ts";
+import { getAddressInfo } from "$lib/utils/balanceUtils.ts";
 
 export const handler: Handlers = {
   async GET(req, ctx) {
@@ -37,8 +18,8 @@ export const handler: Handlers = {
 
     try {
       // Fetch all required data in parallel
-      const [stampsResponse, src20Response, btcInfo, btcPrice] = await Promise
-        .all([
+      const [stampsResponse, src20Response, btcInfo, dispensersData] =
+        await Promise.all([
           // Stamps data with pagination
           fetch(
             `${serverConfig.API_BASE_URL}/api/v2/stamps/balance/${address}?page=${stampsParams.page}&limit=${stampsParams.limit}`,
@@ -47,45 +28,62 @@ export const handler: Handlers = {
           fetch(
             `${serverConfig.API_BASE_URL}/api/v2/src20/balance/${address}?page=${src20Params.page}&limit=${src20Params.limit}`,
           ),
-          // BTC wallet info
-          BTCAddressService.getAddressInfo(address),
-          // BTC price
-          fetchBTCPriceInUSD(serverConfig.API_BASE_URL),
+          // Get BTC info with USD value included
+          getAddressInfo(address, {
+            includeUSD: true,
+            apiBaseUrl: serverConfig.API_BASE_URL,
+          }),
+          // Fetch dispensers
+          StampController.getDispensersWithStampsByAddress(address, {
+            limit: 1000,
+          }),
         ]);
 
       const stampsData = await stampsResponse.json();
       const src20Data = await src20Response.json();
+      const dispensers = dispensersData.dispensers as Dispenser[];
 
-      // Construct wallet data
-      const walletData = {
+      const walletData: WalletData = {
         balance: btcInfo?.balance ?? 0,
-        usdValue: (btcInfo?.balance ?? 0) * btcPrice,
+        usdValue: (btcInfo?.balance ?? 0) * (btcInfo?.btcPrice ?? 0),
         address,
-        fee: btcInfo?.fee_per_vbyte ?? 0,
-        btcPrice: btcPrice,
+        btcPrice: btcInfo?.btcPrice ?? 0,
+        fee: 0,
+        txCount: btcInfo?.txCount ?? 0,
+        unconfirmedBalance: btcInfo?.unconfirmedBalance ?? 0,
+        unconfirmedTxCount: btcInfo?.unconfirmedTxCount ?? 0,
+        dispensers: {
+          open: dispensers.filter((d) => d.give_remaining > 0).length,
+          closed: dispensers.filter((d) => d.give_remaining === 0).length,
+          total: dispensersData.total,
+          items: dispensersData.dispensers,
+        },
       };
 
       return ctx.render({
-        stamps: {
-          data: stampsData.data,
-          pagination: {
-            page: stampsData.page,
-            limit: stampsData.limit,
-            total: stampsData.total,
-            totalPages: stampsData.totalPages,
+        data: {
+          stamps: {
+            data: stampsData.data,
+            pagination: {
+              page: stampsData.page,
+              limit: stampsData.limit,
+              total: stampsData.total,
+              totalPages: stampsData.totalPages,
+            },
           },
-        },
-        src20: {
-          data: src20Data.data,
-          pagination: {
-            page: src20Data.page,
-            limit: src20Data.limit,
-            total: src20Data.total,
-            totalPages: src20Data.totalPages,
+          src20: {
+            data: src20Data.data,
+            pagination: {
+              page: src20Data.page,
+              limit: src20Data.limit,
+              total: src20Data.total,
+              totalPages: src20Data.totalPages,
+            },
           },
+          dispensers,
         },
-        walletData,
         address,
+        walletData,
         stampsTotal: stampsData.total || 0,
         src20Total: src20Data.total || 0,
       });
@@ -93,22 +91,34 @@ export const handler: Handlers = {
       console.error("Error:", error);
       // Return safe default state
       return ctx.render({
-        stamps: {
-          data: [],
-          pagination: { page: 1, limit: 8, total: 0, totalPages: 0 },
+        data: {
+          stamps: {
+            data: [],
+            pagination: { page: 1, limit: 8, total: 0, totalPages: 0 },
+          },
+          src20: {
+            data: [],
+            pagination: { page: 1, limit: 8, total: 0, totalPages: 0 },
+          },
+          dispensers: [],
         },
-        src20: {
-          data: [],
-          pagination: { page: 1, limit: 8, total: 0, totalPages: 0 },
-        },
+        address,
         walletData: {
           balance: 0,
           usdValue: 0,
           address,
-          fee: 0,
           btcPrice: 0,
+          fee: 0,
+          txCount: 0,
+          unconfirmedBalance: 0,
+          unconfirmedTxCount: 0,
+          dispensers: {
+            open: 0,
+            closed: 0,
+            total: 0,
+            items: [],
+          },
         },
-        address,
         stampsTotal: 0,
         src20Total: 0,
       });
@@ -133,8 +143,9 @@ export default function Wallet(props: WalletPageProps) {
         setShowItem={() => {}}
       />
       <WalletContent
-        stamps={data.stamps}
-        src20={data.src20}
+        stamps={data.data.stamps}
+        src20={data.data.src20}
+        dispensers={data.data.dispensers}
         address={data.address}
         showItem="stamp"
       />

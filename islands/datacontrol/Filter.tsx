@@ -31,6 +31,10 @@ export function Filter({
   const [localFilters, setLocalFilters] = useState<FilterTypes[]>(initFilter);
   const { updateURL } = useURLUpdate();
 
+  const toggle = () => {
+    handleOpen(!open);
+  };
+
   useEffect(() => {
     setLocalFilters(initFilter);
   }, [initFilter]);
@@ -47,9 +51,15 @@ export function Filter({
 
   return (
     <div
-      class={`border-2 border-[#660099] bg-[#0B0B0B] rounded-md flex flex-col items-center gap-1 h-fit relative z-[10] ${
+      class={`${
+        open ? "" : "cursor-pointer"
+      } border-2 border-[#8800CC] bg-transparent rounded-md flex flex-col items-center gap-1 h-fit relative z-[10] ${
         open ? "px-6 py-4" : "p-[10px]"
       }`}
+      onClick={() => {
+        if (open) return;
+        handleOpen(true);
+      }}
     >
       {open
         ? (
@@ -58,7 +68,10 @@ export function Filter({
               class="cursor-pointer absolute top-5 right-2"
               src="/img/stamp/navigator-close.png"
               alt="Navigator close"
-              onClick={() => handleOpen(false)}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                handleOpen(false);
+              }}
             />
             <p className="text-lg font-black text-[#AA00FF] mb-1">FILTERS</p>
             {filterButtons.map((filter) => (
@@ -67,7 +80,7 @@ export function Filter({
                 class={`cursor-pointer text-xs tablet:text-sm font-black ${
                   localFilters.includes(filter)
                     ? "text-[#AA00FF]"
-                    : "text-[#660099] hover:text-[#AA00FF]"
+                    : "text-[#8800CC] hover:text-[#AA00FF]"
                 }`}
                 onClick={() => handleFilterChange(filter)}
               >
@@ -79,9 +92,8 @@ export function Filter({
         : (
           <img
             class="cursor-pointer"
-            src="/img/stamp/navigator-list.png"
+            src="/img/stamp/List.svg"
             alt="Navigator list"
-            onClick={() => handleOpen(true)}
           />
         )}
     </div>
