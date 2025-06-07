@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  btc-stamps-explorer:
+    image: mortylen/btcstampsexplorer:latest
+    environment:
+      # Database Configuration
+      - DB_HOST
+      - DB_USER
+      - DB_PASSWORD
+      - DB_PORT
+      - DB_NAME
+      - DB_MAX_RETRIES
+
+      # Redis Configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD
+      - CACHE=true
+      - ELASTICACHE_ENDPOINT=redis:6379
+
+      # API and Service Configuration
+      - API_BASE_URL
+      - QUICKNODE_ENDPOINT
+      - QUICKNODE_API_KEY
+
+      # Minting Service Configuration
+      - MINTING_SERVICE_FEE_ADDRESS
+      - MINTING_SERVICE_FEE_FIXED_SATS
+      - MINTING_SERVICE_FEE_ENABLED
+
+      # Additional Configurations
+      - IMAGES_SRC_PATH
+
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: pause
+        order: stop-first
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      placement:
+        constraints:
+          - node.role == worker
+    healthcheck:
+      test: ["CMD", "deno", "run", "--allow-net", "--allow-env", "healthcheck.ts"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - db_mysql_cluster_network
+      - redis_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    environment:
+      - REDIS_PASSWORD
+    volumes:
+      - redis_data:/data
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      placement:
+        constraints:
+          - node.role == worker
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - redis_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  db_mysql_cluster_network:
+    external: true
+  redis_network:
+    driver: overlay
+    internal: true
+
+volumes:
+  redis_data:
+    driver: local

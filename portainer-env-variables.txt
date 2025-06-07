@@ -1,0 +1,36 @@
+# Environment Variables for Portainer Stack Deployment
+# Copy these variables to Portainer Stack Environment Variables section
+
+# ===== DATABASE CONFIGURATION (Required) =====
+DB_HOST=your-mysql-host
+DB_USER=your-mysql-user
+DB_PASSWORD=your-mysql-password
+DB_PORT=3306
+DB_NAME=btc_stamps
+DB_MAX_RETRIES=5
+
+# ===== REDIS CONFIGURATION (Required) =====
+REDIS_PASSWORD=your-secure-redis-password
+
+# ===== API CONFIGURATION (Optional) =====
+API_BASE_URL=https://your-domain.com
+QUICKNODE_ENDPOINT=https://your-quicknode-endpoint.com
+QUICKNODE_API_KEY=your-quicknode-api-key
+
+# ===== MINTING SERVICE CONFIGURATION (Optional) =====
+MINTING_SERVICE_FEE_ADDRESS=your-bitcoin-address
+MINTING_SERVICE_FEE_FIXED_SATS=1000
+MINTING_SERVICE_FEE_ENABLED=0
+
+# ===== ADDITIONAL CONFIGURATIONS (Optional) =====
+IMAGES_SRC_PATH=https://stampchain.io/stamps
+
+# ===== TRAEFIK CONFIGURATION (For docker-stack.yml only) =====
+DOMAIN=your-domain.com
+
+# ===== INSTRUCTIONS =====
+# 1. Copy the variables above to Portainer Stack Environment Variables
+# 2. Replace placeholder values with your actual configuration
+# 3. Required variables: DB_*, REDIS_PASSWORD
+# 4. Optional variables can be left empty or removed
+# 5. For Traefik integration, use docker-stack.yml and set DOMAIN

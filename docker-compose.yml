@@ -3,6 +3,9 @@ version: '3.8'
 services:
   btc-stamps-explorer:
     image: mortylen/btcstampsexplorer:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
@@ -10,7 +13,7 @@ services:
       - DB_HOST=${DB_HOST}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
-      - DB_PORT=${DB_PORT}
+      - DB_PORT=${DB_PORT:-3306}
       - DB_NAME=${DB_NAME:-btc_stamps}
       - DB_MAX_RETRIES=${DB_MAX_RETRIES:-5}
 
@@ -30,8 +33,19 @@ services:
       - ELASTICACHE_ENDPOINT=${ELASTICACHE_ENDPOINT}
 
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "deno", "run", "--allow-net", "--allow-env", "healthcheck.ts"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - btc-stamps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   btc-stamps-network:
